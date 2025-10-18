@@ -1,0 +1,84 @@
+[
+{
+    "model": "myapp.userprofile",
+    "pk": 1,
+    "fields": {
+        "user": 4,
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 2,
+    "fields": {
+        "user": 5,
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 3,
+    "fields": {
+        "user": 6,
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 4,
+    "fields": {
+        "user": 7,
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 102,
+    "fields": {
+        "name": ";lk';lk",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-25",
+        "file": "",
+        "file_type": null,
+        "content": null,
+        "user": 7
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 120,
+    "fields": {
+        "name": "Запросы",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-10",
+        "file": "documents/5_запросов_на_выборку_данных.docx",
+        "file_type": "docx",
+        "content": "<p><strong>Запрос с LIKE:</strong></p><p>SELECT * FROM \"Организация\"</p><p>WHERE \"Наименование организации\" LIKE '%университет%';</p><p><strong>Запрос с COUNT:</strong></p><p>SELECT COUNT(\"idЛичная карточка\") AS \"Количество карточек\"</p><p>FROM \"Личная карточка работника\";</p><p><strong>Запрос с SUM:</strong></p><p>SELECT SUM(\"Код ОКПО\") AS \"Сумма кодов ОКПО\"</p><p>FROM \"Организация\";</p><p><strong>Запрос с EXPLAIN:</strong></p><p>EXPLAIN SELECT * FROM \"Общие сведения\";</p><p><strong>Запрос с INNER JOIN:</strong></p><p>SELECT *</p><p>FROM \"Общие сведения\"</p><p>INNER JOIN \"Место рождения\"</p><p>ON \"Общие сведения\".\"Место рождения_idМесто рождения\" = \"Место рождения\".\"idМесто рождения\";</p><p><br>like<br>count<br>sum<br>explayn<br>&nbsp;</p>",
+        "user": 5
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 121,
+    "fields": {
+        "name": "лордлор",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-10",
+        "file": "documents/Скрипак_Александр_3216д_Философия.docx",
+        "file_type": "docx",
+        "content": 

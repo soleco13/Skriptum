@@ -34,6 +34,11 @@
           <h3>{{ doc.name }}</h3>
           <p class="document-type">{{ doc.type }}</p>
           <span :class="'status-badge ' + doc.status">{{ doc.status }}</span>
+          <div class="document-owner">
+            <i class="fas" :class="doc.is_owner ? 'fa-crown' : 'fa-share-alt'"></i>
+            <span v-if="doc.is_owner">Мой документ</span>
+            <span v-else>Поделился: {{ doc.owner_name }}</span>
+          </div>
         </div>
         <div class="document-meta">
           <span class="document-date">{{ doc.created }}</span>
@@ -53,10 +58,18 @@
     </div>
     
     <!-- Модальное окно для создания/редактирования документа -->
-    <div v-if="showModal" class="modal">
-      <div class="modal-content">
-        <h2>{{ editingDocument ? 'Редактировать документ' : 'Создать документ' }}</h2>
-        <form @submit.prevent="saveDocument">
+    <div v-if="showModal" class="modal" @click="handleModalBackdropClick">
+      <div class="modal-content" @click.stop>
+        <button class="close-btn" @click="closeModal">
+          <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="modal-header">
+          <h2>{{ editingDocument ? 'Редактировать документ' : 'Создать документ' }}</h2>
+          <p class="modal-subtitle">{{ editingDocument ? 'Измените информацию о документе' : 'Заполните информацию о новом документе' }}</p>
+        </div>
+        
+        <form @submit.prevent="saveDocument" class="document-form">
           <div class="form-group">
             <label for="name">Название</label>
             <input type="text" id="name" v-model="newDocument.name" required>
@@ -98,8 +111,15 @@
           </div>
           
           <div class="form-actions">
-            <button type="button" @click="showModal = false" class="btn-cancel">Отмена</button>
-            <button type="submit" class="btn-primary">Сохранить</button>
+            <button type="button" class="btn-text" @click="closeModal">Отмена</button>
+            <button 
+              type="submit" 
+              class="btn-primary"
+              :disabled="isSaving"
+            >
+              <i class="fas fa-spinner fa-spin" v-if="isSaving"></i>
+              <span v-else>Сохранить</span>
+            </button>
           </div>
         </form>
       </div>
@@ -126,6 +146,7 @@ export default {
       },
       editingDocument: null,
       showModal: false,
+      isSaving: false,
       searchQuery: '',
       typeFilter: '',
       statusFilter: ''
@@ -164,6 +185,24 @@ export default {
       this.showModal = true;
     },
     
+    closeModal() {
+      this.showModal = false;
+      this.editingDocument = null;
+      this.newDocument = {
+        name: '',
+        type: '',
+        status: 'draft',
+        created: '',
+        file: null
+      };
+    },
+    
+    handleModalBackdropClick(event) {
+      if (event.target === event.currentTarget) {
+        this.closeModal();
+      }
+    },
+    
     openEditModal(document) {
       this.editingDocument = document.id;
       this.newDocument = {...document, file: null};
@@ -171,6 +210,7 @@ export default {
     },
     
     async saveDocument() {
+      this.isSaving = true;
       try {
         // Создаем FormData для отправки файла
         const formData = new FormData();
@@ -203,10 +243,12 @@ export default {
           await DocumentService.createWithFile(formData);
         }
         this.fetchDocuments();
-        this.showModal = false;
+        this.closeModal();
       } catch (error) {
         console.error('Ошибка при сохранении документа:', error);
         // Обработка ошибок уже реализована в сервисе
+      } finally {
+        this.isSaving = false;
       }
     },
     

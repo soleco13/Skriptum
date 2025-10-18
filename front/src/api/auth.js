@@ -50,7 +50,7 @@ export const authService = {
   // Получение данных текущего пользователя
   getMe: async () => {
     try {
-      const response = await authAPI.get('/api/users/me/');
+      const response = await authAPI.get('/users/me/');
       return response.data;
     } catch (error) {
       throw error.response ? error.response.data : error;
@@ -60,7 +60,7 @@ export const authService = {
   // Обновление профиля пользователя
   updateProfile: async (profileData) => {
     try {
-      const response = await authAPI.patch('/api/users/update_profile/', profileData);
+      const response = await authAPI.patch('/users/update_profile/', profileData);
       return response.data;
     } catch (error) {
       throw error.response ? error.response.data : error;
@@ -70,7 +70,7 @@ export const authService = {
   // Обновление данных пользователя
   updateUser: async (userData) => {
     try {
-      const response = await authAPI.patch('/api/users/update_me/', userData);
+      const response = await authAPI.patch('/users/update_me/', userData);
       return response.data;
     } catch (error) {
       throw error.response ? error.response.data : error;

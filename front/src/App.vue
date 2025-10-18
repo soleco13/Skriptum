@@ -57,6 +57,16 @@
               <i class="fas fa-project-diagram"></i>
               <span>Бизнес-процессы</span>
             </router-link>
+            
+            <router-link 
+              to="/roles" 
+              class="nav-item" 
+              active-class="active"
+              v-if="hasPermission('manage_roles')"
+            >
+              <i class="fas fa-users-cog"></i>
+              <span>Управление ролями</span>
+            </router-link>
           </nav>
 
           <div class="sidebar-footer">
@@ -100,7 +110,8 @@ export default {
     return {
       message: null,  // Изначально данных нет
       showProfileMenu: false,
-      userName: 'Александр С.'
+      userName: 'Александр С.',
+      user: null
     };
   },
   computed: {
@@ -125,32 +136,69 @@ export default {
       
       // Перенаправляем на страницу входа
       this.$router.push('/login');
+    },
+
+    hasPermission(permission) {
+      // Проверяем разрешения текущего пользователя
+      return this.user?.profile?.permissions?.includes(permission) || false
+    },
+
+    async loadUserData() {
+      try {
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token')
+        if (token) {
+          const response = await axios.get('/api/users/me/', {
+            headers: {
+              'Authorization': `JWT ${token}`
+            }
+          })
+          this.user = response.data
+          this.userName = this.user.first_name || this.user.username
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки данных пользователя:', error)
+      }
     }
   },
   mounted() {
+    // Загружаем данные пользователя
+    this.loadUserData()
+    
     // Закрываем меню профиля при клике вне его
     document.addEventListener('click', (e) => {
       const profileElement = this.$el.querySelector('.user-profile');
-      if (profileElement && !profileElement.contains(e.target) && this.showProfileMenu) {
+      // Проверяем, что клик не произошел внутри модального окна
+      const modalElement = e.target.closest('.modal');
+      
+      if (profileElement && !profileElement.contains(e.target) && 
+          this.showProfileMenu && !modalElement) {
         this.showProfileMenu = false;
       }
     });
     
-    // Проверяем наличие токена перед запросом к API
+    // Проверяем наличие токена для авторизованных пользователей
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    if (token) {
-      // Запрос к Django API с использованием токена
-      axios.get('http://127.0.0.1:8000/api/', {
+    if (token && !this.isPublicPage) {
+      // Получаем информацию о пользователе при наличии токена
+      axios.get('http://127.0.0.1:8000/auth/users/me/', {
         headers: {
           'Authorization': `JWT ${token}`
         }
       })
         .then(response => {
-          this.message = response.data;  // Сохраняем полученные данные
+          // Обновляем имя пользователя из ответа
+          if (response.data && response.data.username) {
+            this.userName = response.data.username;
+          }
         })
         .catch(error => {
-          console.error('Произошла ошибка при запросе данных:', error);
-          this.message = { error: "Не удалось загрузить данные" }; // Показываем ошибку пользователю
+          console.error('Ошибка получения данных пользователя:', error);
+          // При ошибке авторизации перенаправляем на логин
+          if (error.response && error.response.status === 401) {
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
+            this.$router.push('/login');
+          }
         });
     }
   }

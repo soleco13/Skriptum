@@ -1,0 +1,189 @@
+[
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$600000$5FmABh9nGzBXHQvPNYeQDH$ZQpXCxXQaUKLXmIJgPUGsJL8ooLvYYR4QaKwvUJYYKQ=",
+        "last_login": null,
+        "is_superuser": false,
+        "username": "user1",
+        "first_name": "Имя",
+        "last_name": "Фамилия",
+        "email": "user1@example.com",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2025-04-08T04:58:17.356Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$600000$5ri6kpfZD7NswznkokvZfE$WjaTNqIsjonZrjFm8Nm8vSX/x1Q4cGFWUjWde+MR3xA=",
+        "last_login": null,
+        "is_superuser": false,
+        "username": "Александр",
+        "first_name": "",
+        "last_name": "",
+        "email": "skripak.shura@yandex.ru",
+        "is_staff": false,
+        "is_active": false,
+        "date_joined": "2025-04-07T06:02:58.790Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$600000$jwgRFHRjfzn72DOpBfjY6d$TiSRLwD+OnZvwJCq4QVBtx2tUQtE8q8+Ko9674CAexY=",
+        "last_login": null,
+        "is_superuser": false,
+        "username": "Александр1",
+        "first_name": "",
+        "last_name": "",
+        "email": "skripak.shura@yandex.ru",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2025-04-07T06:07:21.366Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$600000$k05EHeQHuY7EoyJ8m6YJz7$GlD42vw4v1pgyMnIqdudG38vYNBaILrJ4HNJo10TNsA=",
+        "last_login": "2025-04-08T12:28:16.212Z",
+        "is_superuser": true,
+        "username": "admin",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin@example.com",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2025-04-08T04:51:38.589Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "auth.user",
+    "fields": {
+        "password": "pbkdf2_sha256$600000$RbR1bJDStyq2hBqKDQbpLQ$kIetNxnvIKyzBG6atZX0a9zW451xCDKcLI9mzx5qbDg=",
+        "last_login": null,
+        "is_superuser": false,
+        "username": "Александр4",
+        "first_name": "",
+        "last_name": "",
+        "email": "skripak.shura@yandex.ru",
+        "is_staff": false,
+        "is_active": true,
+        "date_joined": "2025-04-08T05:02:03.167Z",
+        "groups": [],
+        "user_permissions": []
+    }
+},
+{
+    "model": "sessions.session",
+    "pk": "d3ggu2kkrutrez6043diorune1y7293e",
+    "fields": {
+        "session_data": ".eJxVjEEOwiAQRe_C2pBhCqW4dO8ZyMCAVA0kpV0Z765NutDtf-_9l_C0rcVvPS1-ZnEWozj9boHiI9Ud8J3qrcnY6rrMQe6KPGiX18bpeTncv4NCvXxrFzIwZNJ6BAMmohkUklKsXUYVHLigwGZ0bO3kTAJIlpBswjBlM0Tx_gDHwzc4:1u283s:ExAHV_qLv7itEuy299Ywm9wGGKdjH5w6Ro9Trvvlz3I",
+        "expire_date": "2025-04-22T12:28:16.228Z"
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 1,
+    "fields": {
+        "user": [
+            "Александр"
+        ],
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 2,
+    "fields": {
+        "user": [
+            "Александр1"
+        ],
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 3,
+    "fields": {
+        "user": [
+            "admin"
+        ],
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.userprofile",
+    "pk": 4,
+    "fields": {
+        "user": [
+            "Александр4"
+        ],
+        "position": null,
+        "department": null,
+        "phone": null,
+        "avatar": null
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 102,
+    "fields": {
+        "name": ";lk';lk",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-25",
+        "file": "",
+        "file_type": null,
+        "content": null,
+        "user": [
+            "Александр4"
+        ]
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 120,
+    "fields": {
+        "name": "Запросы",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-10",
+        "file": "documents/5_запросов_на_выборку_данных.docx",
+        "file_type": "docx",
+        "content": "<p><strong>Запрос с LIKE:</strong></p><p>SELECT * FROM \"Организация\"</p><p>WHERE \"Наименование организации\" LIKE '%университет%';</p><p><strong>Запрос с COUNT:</strong></p><p>SELECT COUNT(\"idЛичная карточка\") AS \"Количество карточек\"</p><p>FROM \"Личная карточка работника\";</p><p><strong>Запрос с SUM:</strong></p><p>SELECT SUM(\"Код ОКПО\") AS \"Сумма кодов ОКПО\"</p><p>FROM \"Организация\";</p><p><strong>Запрос с EXPLAIN:</strong></p><p>EXPLAIN SELECT * FROM \"Общие сведения\";</p><p><strong>Запрос с INNER JOIN:</strong></p><p>SELECT *</p><p>FROM \"Общие сведения\"</p><p>INNER JOIN \"Место рождения\"</p><p>ON \"Общие сведения\".\"Место рождения_idМесто рождения\" = \"Место рождения\".\"idМесто рождения\";</p><p><br>like<br>count<br>sum<br>explayn<br>&nbsp;</p>",
+        "user": [
+            "Александр1"
+        ]
+    }
+},
+{
+    "model": "myapp.document",
+    "pk": 121,
+    "fields": {
+        "name": "лордлор",
+        "type": "Договор",
+        "status": "review",
+        "created": "2025-04-10",
+        "file": "documents/Скрипак_Александр_3216д_Философия.docx",
+        "file_type": "docx",
+        "content": 

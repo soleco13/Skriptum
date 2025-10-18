@@ -5,17 +5,17 @@
       <div class="task-header">
         <h3 class="task-title">{{ task.title }}</h3>
         <div class="task-menu">
-          <button class="btn-icon menu-trigger">
+          <button class="btn-icon menu-trigger" @click="toggleMenu">
             <i class="fas fa-ellipsis-v"></i>
           </button>
-          <div class="card-menu">
-            <button class="menu-item" @click="$emit('edit', task)">
+          <div class="card-menu" v-show="showMenu" @click.stop>
+            <button class="menu-item" @click="editTask">
               <i class="fas fa-edit"></i> Редактировать
             </button>
             <button class="menu-item status-action" @click="nextStatus">
               <i :class="getStatusActionIcon()"></i> {{ getStatusActionText() }}
             </button>
-            <button class="menu-item delete" @click="$emit('delete', task.id)">
+            <button class="menu-item delete" @click="deleteTask">
               <i class="fas fa-trash"></i> Удалить
             </button>
           </div>
@@ -63,7 +63,33 @@ export default {
       default: false
     }
   },
+  data() {
+    return {
+      showMenu: false
+    };
+  },
+  mounted() {
+    // Закрываем меню при клике вне его
+    document.addEventListener('click', this.closeMenu);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.closeMenu);
+  },
   methods: {
+    toggleMenu() {
+      this.showMenu = !this.showMenu;
+    },
+    closeMenu() {
+      this.showMenu = false;
+    },
+    editTask() {
+      this.$emit('edit', this.task);
+      this.closeMenu();
+    },
+    deleteTask() {
+      this.$emit('delete', this.task.id);
+      this.closeMenu();
+    },
     formatDeadline(date) {
       if (!date) return '—';
       

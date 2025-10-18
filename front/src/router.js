@@ -47,12 +47,18 @@ const routes = [
     component: () => import('./views/Tasks.vue'),
     meta: { requiresAuth: true }
   },
-  {
-    path: '/profile',
-    name: 'Profile',
-    component: () => import('./views/Profile.vue'),
-    meta: { requiresAuth: true }
-  }
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('./views/Profile.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/roles',
+      name: 'RolesManagement',
+      component: () => import('./views/RolesManagement.vue'),
+      meta: { requiresAuth: true, requiresPermission: 'manage_roles' }
+    }
 ]
 
 const router = createRouter({

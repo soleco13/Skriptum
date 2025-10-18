@@ -95,12 +95,6 @@
             <i class="fas fa-plus"></i>
             <span>Создать процесс</span>
           </button>
-          
-          <!-- Кнопка для открытия редактора BPMN -->
-          <button class="btn-primary bpmn-btn" @click="openBpmnEditor()">
-            <i class="fas fa-project-diagram"></i>
-            <span>Редактор процессов</span>
-          </button>
         </template>
         
         <!-- Кнопки для режима редактора BPMN -->
@@ -124,6 +118,7 @@
           @saved="handleDiagramSaved"
           @diagram-created="handleDiagramCreated"
           @error="handleBpmnError"
+          @close="closeBpmnEditor"
         />
       </div>
       
@@ -168,6 +163,13 @@
               <i :class="getStatusIcon(process.status)"></i>
               <span>{{ getStatusText(process.status) }}</span>
             </div>
+          </div>
+          
+          <!-- Информация о владельце процесса -->
+          <div class="process-owner">
+            <i class="fas" :class="process.is_owner ? 'fa-crown' : 'fa-share-alt'"></i>
+            <span v-if="process.is_owner">Мой процесс</span>
+            <span v-else>Поделился: {{ process.owner_name }}</span>
           </div>
           <div class="process-menu">
             <button class="btn-icon menu-trigger" @click="toggleCardMenu(process.id)">
@@ -251,9 +253,9 @@
     
     <!-- Модальное окно для создания/редактирования -->
     <transition name="modal">
-      <div v-if="showModal" class="modal" @click.self="closeModal">
-        <div class="modal-content">
-          <button class="modal-close" @click="closeModal">
+      <div v-if="showModal" class="modal" @click="handleModalBackdropClick">
+        <div class="modal-content" @click.stop>
+          <button class="close-btn" @click="closeModal">
             <i class="fas fa-times"></i>
           </button>
           
@@ -511,6 +513,14 @@ export default {
     
     closeModal() {
       this.showModal = false;
+      this.editingProcess = null;
+      this.formErrors = { name: '', deadline: '' };
+    },
+    
+    handleModalBackdropClick(event) {
+      if (event.target === event.currentTarget) {
+        this.closeModal();
+      }
     },
     
     validateForm() {
@@ -554,12 +564,17 @@ export default {
       } else {
         // Создание нового процесса
         ProcessService.create(this.newProcess)
-          .then(() => {
+          .then(async (response) => {
             this.fetchProcesses();
             setTimeout(() => {
               this.showModal = false;
               this.isSaving = false;
               this.showToast('Процесс успешно создан');
+              
+              // Перенаправляем пользователя в BPMN редактор для нового процесса
+              if (response && response.id) {
+                this.openBpmnEditor(response.id);
+              }
             }, 600);
           })
           .catch(error => {
@@ -769,13 +784,22 @@ export default {
         try {
           // Загружаем диаграмму процесса, если указан ID
           const diagram = await BpmnService.getDiagram(processId);
-          if (diagram) {
+          if (diagram && diagram.xml) {
             this.currentDiagramXml = diagram.xml;
             this.currentDiagramName = diagram.name || `Процесс #${processId}`;
+          } else {
+            // Если диаграммы нет, создаем новую для этого процесса
+            const process = this.processes.find(p => p.id === processId);
+            this.currentDiagramName = process ? process.name : `Процесс #${processId}`;
+            this.currentDiagramXml = null; // Редактор создаст пустую диаграмму
           }
         } catch (error) {
           console.error('Ошибка при загрузке диаграммы:', error);
-          this.showToast('Не удалось загрузить диаграмму процесса', 'error');
+          // Если ошибка загрузки, создаем новую диаграмму
+          const process = this.processes.find(p => p.id === processId);
+          this.currentDiagramName = process ? process.name : `Процесс #${processId}`;
+          this.currentDiagramXml = null;
+          this.showToast('Создается новая диаграмма для процесса', 'warning');
         }
       }
     },
@@ -797,7 +821,7 @@ export default {
     handleDiagramSaved(response) {
       if (response) {
         this.currentDiagramName = response.name || this.currentDiagramName;
-        this.showToast('Диаграмма успешно сохранена');
+        // Уведомление о сохранении убрано
         
         // Обновляем список процессов, если диаграмма связана с процессом
         if (this.currentDiagramId) {

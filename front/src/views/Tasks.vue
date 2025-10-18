@@ -42,7 +42,7 @@
           </button>
         </div>
         
-        <div class="filter-dropdown">
+        <div class="filter-container">
           <button class="filter-btn" @click="showFilters = !showFilters">
             <i class="fas fa-filter"></i>
             <span>Фильтр</span>
@@ -227,10 +227,10 @@
                 <i class="fas fa-trash"></i>
               </button>
               <div class="status-dropdown">
-                <button class="btn-icon dropdown-toggle">
+                <button class="btn-icon dropdown-toggle" @click="toggleStatusMenu(task.id)">
                   <i class="fas fa-ellipsis-v"></i>
                 </button>
-                <div class="status-menu">
+                <div class="status-menu" v-show="activeStatusMenu === task.id">
                   <button 
                     v-for="status in availableStatuses(task)" 
                     :key="status.value"
@@ -485,7 +485,6 @@
 </template>
 
 <script>
-import axios from 'axios';
 import { TaskService } from '../api/services';
 import TaskCard from '../components/TaskCard.vue';
 
@@ -539,6 +538,7 @@ export default {
         show: false,
         taskId: null
       },
+      activeStatusMenu: null,
       toast: {
         show: false,
         message: '',
@@ -640,6 +640,11 @@ export default {
         // Если нужно, можно добавить дополнительную обработку ошибок здесь
       }
     },
+    
+    toggleStatusMenu(taskId) {
+      this.activeStatusMenu = this.activeStatusMenu === taskId ? null : taskId;
+    },
+    
     openCreateModal() {
       this.editingTask = null;
       const today = new Date();
@@ -660,7 +665,7 @@ export default {
     },
     
     openEditModal(task) {
-      this.editingTask = task.id;
+      this.editingTask = task;  // Сохраняем весь объект задачи
       this.newTask = {...task};
       this.formErrors = { title: '', deadline: '' };
       this.showModal = true;
@@ -668,6 +673,8 @@ export default {
     
     closeModal() {
       this.showModal = false;
+      this.editingTask = null;
+      this.formErrors = { title: '', deadline: '' };
     },
     
     validateForm() {
@@ -694,11 +701,12 @@ export default {
       
       if (this.editingTask) {
         // Обновление существующей задачи
-        TaskService.update(this.editingTask, this.newTask)
+        TaskService.update(this.editingTask.id, this.newTask)
           .then(() => {
             this.fetchTasks();
             setTimeout(() => {
               this.showModal = false;
+              this.editingTask = null;
               this.isSaving = false;
               this.showToast('Задача успешно обновлена', 'success');
             }, 600);
@@ -715,6 +723,7 @@ export default {
             this.fetchTasks();
             setTimeout(() => {
               this.showModal = false;
+              this.editingTask = null;
               this.isSaving = false;
               this.showToast('Задача успешно создана', 'success');
             }, 600);
@@ -756,18 +765,18 @@ export default {
         });
     },
     
-    changeTaskStatus(task, newStatus) {
+    async changeTaskStatus(task, newStatus) {
       const updatedTask = {...task, status: newStatus};
       
-      axios.put(`http://127.0.0.1:8000/api/tasks/${task.id}/`, updatedTask)
-        .then(() => {
-          this.fetchTasks();
-          this.showToast(`Статус задачи изменен на "${this.getStatusLabel(newStatus)}"`, 'success');
-        })
-        .catch(error => {
-          console.error('Ошибка при изменении статуса задачи:', error);
-          this.showToast('Ошибка при изменении статуса задачи', 'error');
-        });
+      try {
+        await TaskService.update(task.id, updatedTask);
+        this.fetchTasks();
+        this.activeStatusMenu = null; // Закрываем меню после изменения статуса
+        this.showToast(`Статус задачи изменен на "${this.getStatusLabel(newStatus)}"`, 'success');
+      } catch (error) {
+        console.error('Ошибка при изменении статуса задачи:', error);
+        this.showToast('Ошибка при изменении статуса задачи', 'error');
+      }
     },
     
     resetFilters() {

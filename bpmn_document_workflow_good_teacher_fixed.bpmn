@@ -1,0 +1,885 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Camunda Modeler" exporterVersion="5.0.0">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Menager" name="Менеджер по продажам" processRef="Process_Menager" />
+    <bpmn:participant id="Participant_Legal" name="Юридический отдел" processRef="Process_Legal" />
+    <bpmn:participant id="Participant_Client" name="Клиент" processRef="Process_Client" />
+    <bpmn:participant id="Participant_Accounting" name="Бухгалтерия" processRef="Process_Accounting" />
+    <bpmn:participant id="Participant_Education" name="Учебный отдел" processRef="Process_Education" />
+    <bpmn:participant id="Participant_HR" name="Кадровый отдел" processRef="Process_HR" />
+    <bpmn:participant id="Participant_Management" name="Руководство/Администрация" processRef="Process_Management" />
+    <bpmn:participant id="Participant_Database" name="База данных документооборота" processRef="Process_Database" />
+    
+    <!-- Сообщения между участниками с документами -->
+    <bpmn:messageFlow id="MessageFlow_1" sourceRef="Task_ReceiveRequest" targetRef="Task_ReviewProposal" name="Заявка клиента" />
+    <bpmn:messageFlow id="MessageFlow_2" sourceRef="Task_PrepareCommercialProposal" targetRef="StartEvent_Client" name="Коммерческое предложение" />
+    <bpmn:messageFlow id="MessageFlow_3" sourceRef="Task_ApproveConditions" targetRef="Task_PrepareContract" name="Заявка на договор" />
+    <bpmn:messageFlow id="MessageFlow_4" sourceRef="Task_PrepareContract" targetRef="Task_SignContract" name="Проект договора" />
+    <bpmn:messageFlow id="MessageFlow_5" sourceRef="Task_SignContract" targetRef="Task_IssueInvoice" name="Подписанный договор" />
+    <bpmn:messageFlow id="MessageFlow_6" sourceRef="Task_MakePayment" targetRef="Task_ProcessPayment" name="Платежное поручение" />
+    <bpmn:messageFlow id="MessageFlow_7" sourceRef="Task_ProcessPayment" targetRef="Task_CreateStudyProgram" name="Подтверждение оплаты" />
+    <bpmn:messageFlow id="MessageFlow_8" sourceRef="Task_CreateStudyProgram" targetRef="Task_AssignTeachers" name="Запрос на преподавателей" />
+    <bpmn:messageFlow id="MessageFlow_9" sourceRef="Task_AssignTeachers" targetRef="Task_ConductTraining" name="Список преподавателей" />
+    <bpmn:messageFlow id="MessageFlow_10" sourceRef="Task_ConductTraining" targetRef="Task_CreateAct" name="Отчет о проведении обучения" />
+    <bpmn:messageFlow id="MessageFlow_11" sourceRef="Task_CreateAct" targetRef="StartEvent_Database" name="Акт оказанных услуг" />
+    
+    <!-- Дополнительные потоки документов в БД -->
+    <bpmn:messageFlow id="MessageFlow_DB_1" sourceRef="Task_ReceiveRequest" targetRef="StartEvent_Database" name="Регистрация заявки" />
+    <bpmn:messageFlow id="MessageFlow_DB_2" sourceRef="Task_PrepareCommercialProposal" targetRef="StartEvent_Database" name="Сохранение КП" />
+    <bpmn:messageFlow id="MessageFlow_DB_3" sourceRef="Task_PrepareContract" targetRef="StartEvent_Database" name="Сохранение договора" />
+    <bpmn:messageFlow id="MessageFlow_DB_4" sourceRef="Task_IssueInvoice" targetRef="StartEvent_Database" name="Регистрация счета" />
+    <bpmn:messageFlow id="MessageFlow_DB_5" sourceRef="Task_ProcessPayment" targetRef="Task_UpdateStatus" name="Обновление статуса оплаты" />
+    <bpmn:messageFlow id="MessageFlow_DB_6" sourceRef="Task_CreateStudyProgram" targetRef="StartEvent_Database" name="Сохранение учебного плана" />
+    <bpmn:messageFlow id="MessageFlow_DB_7" sourceRef="Task_AssignTeachers" targetRef="StartEvent_Database" name="Сохранение кадровых документов" />
+    <bpmn:messageFlow id="MessageFlow_DB_8" sourceRef="Task_ConductTraining" targetRef="StartEvent_Database" name="Сохранение журналов и протоколов" />
+    <bpmn:messageFlow id="MessageFlow_DB_9" sourceRef="Task_CreateAct" targetRef="Task_UpdateStatus" name="Обновление статуса завершения" />
+  </bpmn:collaboration>
+
+  <!-- Процесс Менеджера по продажам -->
+  <bpmn:process id="Process_Menager" name="Процесс менеджера по продажам" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Получение запроса от клиента">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_ReceiveRequest" name="Ввод данных клиента в БД">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_PrepareCommercialProposal" name="Подготовка коммерческого предложения">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Шлюз для проверки согласования -->
+    <bpmn:exclusiveGateway id="Gateway_Approval" name="Условия согласованы?">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <bpmn:task id="Task_ReviseProposal" name="Пересмотр предложения">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ApproveConditions" name="Согласование условий с клиентом">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_TransferToLegal" name="Передача заявки в юридический отдел">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_8</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Menager" name="Завершение работы менеджера">
+      <bpmn:incoming>Flow_8</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Task_ReceiveRequest" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_ReceiveRequest" targetRef="Task_PrepareCommercialProposal" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="Task_PrepareCommercialProposal" targetRef="Gateway_Approval" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="Gateway_Approval" targetRef="Task_ApproveConditions" name="Да" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="Gateway_Approval" targetRef="Task_ReviseProposal" name="Нет" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="Task_ReviseProposal" targetRef="Task_ApproveConditions" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="Task_ApproveConditions" targetRef="Task_TransferToLegal" />
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="Task_TransferToLegal" targetRef="EndEvent_Menager" />
+  </bpmn:process>
+
+  <!-- Процесс Юридического отдела -->
+  <bpmn:process id="Process_Legal" name="Процесс юридического отдела" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Legal" name="Получение заявки от менеджера">
+      <bpmn:outgoing>Flow_Legal_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_PrepareContract" name="Подготовка проекта договора">
+      <bpmn:incoming>Flow_Legal_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Параллельный шлюз для согласования -->
+    <bpmn:parallelGateway id="Gateway_ParallelApproval" name="Параллельное согласование">
+      <bpmn:incoming>Flow_Legal_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Legal_4</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    
+    <bpmn:task id="Task_LegalReview" name="Юридическая экспертиза">
+      <bpmn:incoming>Flow_Legal_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_5</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ManagementApproval" name="Согласование с руководством">
+      <bpmn:incoming>Flow_Legal_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_6</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Соединительный шлюз -->
+    <bpmn:parallelGateway id="Gateway_JoinApproval" name="Ожидание всех согласований">
+      <bpmn:incoming>Flow_Legal_5</bpmn:incoming>
+      <bpmn:incoming>Flow_Legal_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_7</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    
+    <bpmn:task id="Task_ApproveContract" name="Утверждение договора">
+      <bpmn:incoming>Flow_Legal_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_8</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_SendContractToClient" name="Передача договора клиенту">
+      <bpmn:incoming>Flow_Legal_8</bpmn:incoming>
+      <bpmn:outgoing>Flow_Legal_9</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Legal" name="Завершение работы юридического отдела">
+      <bpmn:incoming>Flow_Legal_9</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_Legal_1" sourceRef="StartEvent_Legal" targetRef="Task_PrepareContract" />
+    <bpmn:sequenceFlow id="Flow_Legal_2" sourceRef="Task_PrepareContract" targetRef="Gateway_ParallelApproval" />
+    <bpmn:sequenceFlow id="Flow_Legal_3" sourceRef="Gateway_ParallelApproval" targetRef="Task_LegalReview" />
+    <bpmn:sequenceFlow id="Flow_Legal_4" sourceRef="Gateway_ParallelApproval" targetRef="Task_ManagementApproval" />
+    <bpmn:sequenceFlow id="Flow_Legal_5" sourceRef="Task_LegalReview" targetRef="Gateway_JoinApproval" />
+    <bpmn:sequenceFlow id="Flow_Legal_6" sourceRef="Task_ManagementApproval" targetRef="Gateway_JoinApproval" />
+    <bpmn:sequenceFlow id="Flow_Legal_7" sourceRef="Gateway_JoinApproval" targetRef="Task_ApproveContract" />
+    <bpmn:sequenceFlow id="Flow_Legal_8" sourceRef="Task_ApproveContract" targetRef="Task_SendContractToClient" />
+    <bpmn:sequenceFlow id="Flow_Legal_9" sourceRef="Task_SendContractToClient" targetRef="EndEvent_Legal" />
+  </bpmn:process>
+
+  <!-- Процесс Клиента -->
+  <bpmn:process id="Process_Client" name="Процесс клиента" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Client" name="Получение коммерческого предложения">
+      <bpmn:outgoing>Flow_Client_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_ReviewProposal" name="Рассмотрение коммерческого предложения">
+      <bpmn:incoming>Flow_Client_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Client_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Шлюз для принятия решения -->
+    <bpmn:exclusiveGateway id="Gateway_ClientDecision" name="Принимаем предложение?">
+      <bpmn:incoming>Flow_Client_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Client_3</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Client_4</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <bpmn:endEvent id="EndEvent_ClientReject" name="Завершение - отклонение">
+      <bpmn:incoming>Flow_Client_4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:task id="Task_SignContract" name="Подписание договора">
+      <bpmn:incoming>Flow_Client_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Client_5</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_MakePayment" name="Оплата услуг">
+      <bpmn:incoming>Flow_Client_5</bpmn:incoming>
+      <bpmn:outgoing>Flow_Client_6</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Client" name="Завершение взаимодействия с клиентом">
+      <bpmn:incoming>Flow_Client_6</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_Client_1" sourceRef="StartEvent_Client" targetRef="Task_ReviewProposal" />
+    <bpmn:sequenceFlow id="Flow_Client_2" sourceRef="Task_ReviewProposal" targetRef="Gateway_ClientDecision" />
+    <bpmn:sequenceFlow id="Flow_Client_3" sourceRef="Gateway_ClientDecision" targetRef="Task_SignContract" name="Да" />
+    <bpmn:sequenceFlow id="Flow_Client_4" sourceRef="Gateway_ClientDecision" targetRef="EndEvent_ClientReject" name="Нет" />
+    <bpmn:sequenceFlow id="Flow_Client_5" sourceRef="Task_SignContract" targetRef="Task_MakePayment" />
+    <bpmn:sequenceFlow id="Flow_Client_6" sourceRef="Task_MakePayment" targetRef="EndEvent_Client" />
+  </bpmn:process>
+
+  <!-- Процесс Бухгалтерии -->
+  <bpmn:process id="Process_Accounting" name="Процесс бухгалтерии" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Accounting" name="Получение подписанного договора">
+      <bpmn:outgoing>Flow_Accounting_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_IssueInvoice" name="Выставление счета на оплату">
+      <bpmn:incoming>Flow_Accounting_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ProcessPayment" name="Обработка поступления оплаты">
+      <bpmn:incoming>Flow_Accounting_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_CreateAct" name="Оформление акта оказанных услуг">
+      <bpmn:incoming>Flow_Accounting_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_4</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_CreateReconciliation" name="Акт сверки взаиморасчетов">
+      <bpmn:incoming>Flow_Accounting_4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Accounting_5</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Accounting" name="Завершение финансового оформления">
+      <bpmn:incoming>Flow_Accounting_5</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_Accounting_1" sourceRef="StartEvent_Accounting" targetRef="Task_IssueInvoice" />
+    <bpmn:sequenceFlow id="Flow_Accounting_2" sourceRef="Task_IssueInvoice" targetRef="Task_ProcessPayment" />
+    <bpmn:sequenceFlow id="Flow_Accounting_3" sourceRef="Task_ProcessPayment" targetRef="Task_CreateAct" />
+    <bpmn:sequenceFlow id="Flow_Accounting_4" sourceRef="Task_CreateAct" targetRef="Task_CreateReconciliation" />
+    <bpmn:sequenceFlow id="Flow_Accounting_5" sourceRef="Task_CreateReconciliation" targetRef="EndEvent_Accounting" />
+  </bpmn:process>
+
+  <!-- Процесс Учебного отдела -->
+  <bpmn:process id="Process_Education" name="Процесс учебного отдела" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Education" name="Получение оплаченного договора">
+      <bpmn:outgoing>Flow_Education_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_CreateStudyProgram" name="Создание учебной программы">
+      <bpmn:incoming>Flow_Education_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Education_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ConductTraining" name="Проведение обучения">
+      <bpmn:incoming>Flow_Education_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Education_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_CreateCertificates" name="Выдача сертификатов">
+      <bpmn:incoming>Flow_Education_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Education_4</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Education" name="Завершение образовательного процесса">
+      <bpmn:incoming>Flow_Education_4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_Education_1" sourceRef="StartEvent_Education" targetRef="Task_CreateStudyProgram" />
+    <bpmn:sequenceFlow id="Flow_Education_2" sourceRef="Task_CreateStudyProgram" targetRef="Task_ConductTraining" />
+    <bpmn:sequenceFlow id="Flow_Education_3" sourceRef="Task_ConductTraining" targetRef="Task_CreateCertificates" />
+    <bpmn:sequenceFlow id="Flow_Education_4" sourceRef="Task_CreateCertificates" targetRef="EndEvent_Education" />
+  </bpmn:process>
+
+  <!-- Процесс Кадрового отдела -->
+  <bpmn:process id="Process_HR" name="Процесс кадрового отдела" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_HR" name="Получение запроса на преподавателей">
+      <bpmn:outgoing>Flow_HR_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_AssignTeachers" name="Оформление преподавателей">
+      <bpmn:incoming>Flow_HR_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_HR_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ManageWorkTime" name="Учет рабочего времени">
+      <bpmn:incoming>Flow_HR_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_HR_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_HR" name="Завершение кадрового сопровождения">
+      <bpmn:incoming>Flow_HR_3</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_HR_1" sourceRef="StartEvent_HR" targetRef="Task_AssignTeachers" />
+    <bpmn:sequenceFlow id="Flow_HR_2" sourceRef="Task_AssignTeachers" targetRef="Task_ManageWorkTime" />
+    <bpmn:sequenceFlow id="Flow_HR_3" sourceRef="Task_ManageWorkTime" targetRef="EndEvent_HR" />
+  </bpmn:process>
+
+  <!-- Процесс Руководства/Администрации -->
+  <bpmn:process id="Process_Management" name="Процесс руководства" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Management" name="Получение документов на утверждение">
+      <bpmn:outgoing>Flow_Management_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <bpmn:task id="Task_ApproveDocuments" name="Утверждение регламентов и документов">
+      <bpmn:incoming>Flow_Management_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Management_2</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ControlProcess" name="Контроль процессов">
+      <bpmn:incoming>Flow_Management_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_Management_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Management" name="Завершение административного контроля">
+      <bpmn:incoming>Flow_Management_3</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <bpmn:sequenceFlow id="Flow_Management_1" sourceRef="StartEvent_Management" targetRef="Task_ApproveDocuments" />
+    <bpmn:sequenceFlow id="Flow_Management_2" sourceRef="Task_ApproveDocuments" targetRef="Task_ControlProcess" />
+    <bpmn:sequenceFlow id="Flow_Management_3" sourceRef="Task_ControlProcess" targetRef="EndEvent_Management" />
+  </bpmn:process>
+
+  <!-- Процесс Базы данных документооборота -->
+  <bpmn:process id="Process_Database" name="Процесс базы данных документооборота" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Database" name="Получение документа для регистрации">
+      <bpmn:outgoing>Flow_Database_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    
+    <!-- Шлюз для определения типа документа -->
+    <bpmn:exclusiveGateway id="Gateway_DocumentType" name="Определение типа документа">
+      <bpmn:incoming>Flow_Database_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_Contract</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Database_Financial</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Database_Education</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Database_HR</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    
+    <!-- Обработка договорных документов -->
+    <bpmn:task id="Task_RegisterContract" name="Регистрация договорных документов">
+      <bpmn:incoming>Flow_Database_Contract</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_Contract_Update</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Обработка финансовых документов -->
+    <bpmn:task id="Task_RegisterFinancial" name="Регистрация финансовых документов">
+      <bpmn:incoming>Flow_Database_Financial</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_Financial_Update</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Обработка учебных документов -->
+    <bpmn:task id="Task_RegisterEducation" name="Регистрация учебных документов">
+      <bpmn:incoming>Flow_Database_Education</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_Education_Update</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Обработка кадровых документов -->
+    <bpmn:task id="Task_RegisterHR" name="Регистрация кадровых документов">
+      <bpmn:incoming>Flow_Database_HR</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_HR_Update</bpmn:outgoing>
+    </bpmn:task>
+    
+    <!-- Обновление статусов -->
+    <bpmn:task id="Task_UpdateStatus" name="Обновление статуса документа">
+      <bpmn:incoming>Flow_Database_Contract_Update</bpmn:incoming>
+      <bpmn:incoming>Flow_Database_Financial_Update</bpmn:incoming>
+      <bpmn:incoming>Flow_Database_Education_Update</bpmn:incoming>
+      <bpmn:incoming>Flow_Database_HR_Update</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_3</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:task id="Task_ArchiveDocument" name="Архивирование документа">
+      <bpmn:incoming>Flow_Database_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Database_4</bpmn:outgoing>
+    </bpmn:task>
+    
+    <bpmn:endEvent id="EndEvent_Database" name="Завершение обработки документа">
+      <bpmn:incoming>Flow_Database_4</bpmn:incoming>
+    </bpmn:endEvent>
+    
+    <!-- Потоки для процесса БД -->
+    <bpmn:sequenceFlow id="Flow_Database_1" sourceRef="StartEvent_Database" targetRef="Gateway_DocumentType" />
+    <bpmn:sequenceFlow id="Flow_Database_Contract" sourceRef="Gateway_DocumentType" targetRef="Task_RegisterContract" name="Договорные документы" />
+    <bpmn:sequenceFlow id="Flow_Database_Financial" sourceRef="Gateway_DocumentType" targetRef="Task_RegisterFinancial" name="Финансовые документы" />
+    <bpmn:sequenceFlow id="Flow_Database_Education" sourceRef="Gateway_DocumentType" targetRef="Task_RegisterEducation" name="Учебные документы" />
+    <bpmn:sequenceFlow id="Flow_Database_HR" sourceRef="Gateway_DocumentType" targetRef="Task_RegisterHR" name="Кадровые документы" />
+    <bpmn:sequenceFlow id="Flow_Database_Contract_Update" sourceRef="Task_RegisterContract" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_Database_Financial_Update" sourceRef="Task_RegisterFinancial" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_Database_Education_Update" sourceRef="Task_RegisterEducation" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_Database_HR_Update" sourceRef="Task_RegisterHR" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_Database_3" sourceRef="Task_UpdateStatus" targetRef="Task_ArchiveDocument" />
+    <bpmn:sequenceFlow id="Flow_Database_4" sourceRef="Task_ArchiveDocument" targetRef="EndEvent_Database" />
+  </bpmn:process>
+
+  <!-- Диаграмма -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <!-- Участники (пулы) -->
+      <bpmndi:BPMNShape id="Participant_Menager_di" bpmnElement="Participant_Menager" isHorizontal="true">
+        <dc:Bounds x="100" y="100" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Legal_di" bpmnElement="Participant_Legal" isHorizontal="true">
+        <dc:Bounds x="100" y="320" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Client_di" bpmnElement="Participant_Client" isHorizontal="true">
+        <dc:Bounds x="100" y="540" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Accounting_di" bpmnElement="Participant_Accounting" isHorizontal="true">
+        <dc:Bounds x="100" y="760" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Education_di" bpmnElement="Participant_Education" isHorizontal="true">
+        <dc:Bounds x="100" y="980" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_HR_di" bpmnElement="Participant_HR" isHorizontal="true">
+        <dc:Bounds x="100" y="1200" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Management_di" bpmnElement="Participant_Management" isHorizontal="true">
+        <dc:Bounds x="100" y="1420" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_Database_di" bpmnElement="Participant_Database" isHorizontal="true">
+        <dc:Bounds x="100" y="1640" width="1200" height="200" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса менеджера -->
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="200" y="150" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReceiveRequest_di" bpmnElement="Task_ReceiveRequest">
+        <dc:Bounds x="280" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrepareCommercialProposal_di" bpmnElement="Task_PrepareCommercialProposal">
+        <dc:Bounds x="420" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Approval_di" bpmnElement="Gateway_Approval">
+        <dc:Bounds x="560" y="145" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReviseProposal_di" bpmnElement="Task_ReviseProposal">
+        <dc:Bounds x="650" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApproveConditions_di" bpmnElement="Task_ApproveConditions">
+        <dc:Bounds x="790" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_TransferToLegal_di" bpmnElement="Task_TransferToLegal">
+        <dc:Bounds x="930" y="130" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Menager_di" bpmnElement="EndEvent_Menager">
+        <dc:Bounds x="1070" y="150" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса юридического отдела -->
+      <bpmndi:BPMNShape id="StartEvent_Legal_di" bpmnElement="StartEvent_Legal">
+        <dc:Bounds x="200" y="370" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrepareContract_di" bpmnElement="Task_PrepareContract">
+        <dc:Bounds x="280" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ParallelApproval_di" bpmnElement="Gateway_ParallelApproval">
+        <dc:Bounds x="420" y="365" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_LegalReview_di" bpmnElement="Task_LegalReview">
+        <dc:Bounds x="510" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ManagementApproval_di" bpmnElement="Task_ManagementApproval">
+        <dc:Bounds x="650" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_JoinApproval_di" bpmnElement="Gateway_JoinApproval">
+        <dc:Bounds x="790" y="365" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApproveContract_di" bpmnElement="Task_ApproveContract">
+        <dc:Bounds x="880" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SendContractToClient_di" bpmnElement="Task_SendContractToClient">
+        <dc:Bounds x="1020" y="350" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Legal_di" bpmnElement="EndEvent_Legal">
+        <dc:Bounds x="1160" y="370" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса клиента -->
+      <bpmndi:BPMNShape id="StartEvent_Client_di" bpmnElement="StartEvent_Client">
+        <dc:Bounds x="200" y="590" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ReviewProposal_di" bpmnElement="Task_ReviewProposal">
+        <dc:Bounds x="280" y="570" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ClientDecision_di" bpmnElement="Gateway_ClientDecision">
+        <dc:Bounds x="420" y="585" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ClientReject_di" bpmnElement="EndEvent_ClientReject">
+        <dc:Bounds x="510" y="590" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_SignContract_di" bpmnElement="Task_SignContract">
+        <dc:Bounds x="650" y="570" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_MakePayment_di" bpmnElement="Task_MakePayment">
+        <dc:Bounds x="790" y="570" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Client_di" bpmnElement="EndEvent_Client">
+        <dc:Bounds x="930" y="590" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса бухгалтерии -->
+      <bpmndi:BPMNShape id="StartEvent_Accounting_di" bpmnElement="StartEvent_Accounting">
+        <dc:Bounds x="200" y="810" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_IssueInvoice_di" bpmnElement="Task_IssueInvoice">
+        <dc:Bounds x="280" y="790" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ProcessPayment_di" bpmnElement="Task_ProcessPayment">
+        <dc:Bounds x="420" y="790" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateAct_di" bpmnElement="Task_CreateAct">
+        <dc:Bounds x="560" y="790" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateReconciliation_di" bpmnElement="Task_CreateReconciliation">
+        <dc:Bounds x="700" y="790" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Accounting_di" bpmnElement="EndEvent_Accounting">
+        <dc:Bounds x="840" y="810" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса учебного отдела -->
+      <bpmndi:BPMNShape id="StartEvent_Education_di" bpmnElement="StartEvent_Education">
+        <dc:Bounds x="200" y="1030" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateStudyProgram_di" bpmnElement="Task_CreateStudyProgram">
+        <dc:Bounds x="280" y="1010" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ConductTraining_di" bpmnElement="Task_ConductTraining">
+        <dc:Bounds x="420" y="1010" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CreateCertificates_di" bpmnElement="Task_CreateCertificates">
+        <dc:Bounds x="560" y="1010" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Education_di" bpmnElement="EndEvent_Education">
+        <dc:Bounds x="700" y="1030" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса кадрового отдела -->
+      <bpmndi:BPMNShape id="StartEvent_HR_di" bpmnElement="StartEvent_HR">
+        <dc:Bounds x="200" y="1250" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_AssignTeachers_di" bpmnElement="Task_AssignTeachers">
+        <dc:Bounds x="280" y="1230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ManageWorkTime_di" bpmnElement="Task_ManageWorkTime">
+        <dc:Bounds x="420" y="1230" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_HR_di" bpmnElement="EndEvent_HR">
+        <dc:Bounds x="560" y="1250" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса руководства -->
+      <bpmndi:BPMNShape id="StartEvent_Management_di" bpmnElement="StartEvent_Management">
+        <dc:Bounds x="200" y="1470" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ApproveDocuments_di" bpmnElement="Task_ApproveDocuments">
+        <dc:Bounds x="280" y="1450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ControlProcess_di" bpmnElement="Task_ControlProcess">
+        <dc:Bounds x="420" y="1450" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Management_di" bpmnElement="EndEvent_Management">
+        <dc:Bounds x="560" y="1470" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Элементы процесса базы данных -->
+      <bpmndi:BPMNShape id="StartEvent_Database_di" bpmnElement="StartEvent_Database">
+        <dc:Bounds x="200" y="1690" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Шлюз для определения типа документа -->
+      <bpmndi:BPMNShape id="Gateway_DocumentType_di" bpmnElement="Gateway_DocumentType">
+        <dc:Bounds x="280" y="1685" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Задачи регистрации по типам документов -->
+      <bpmndi:BPMNShape id="Task_RegisterContract_di" bpmnElement="Task_RegisterContract">
+        <dc:Bounds x="380" y="1650" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RegisterFinancial_di" bpmnElement="Task_RegisterFinancial">
+        <dc:Bounds x="380" y="1750" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RegisterEducation_di" bpmnElement="Task_RegisterEducation">
+        <dc:Bounds x="380" y="1850" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RegisterHR_di" bpmnElement="Task_RegisterHR">
+        <dc:Bounds x="380" y="1950" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Обновление статуса -->
+      <bpmndi:BPMNShape id="Task_UpdateStatus_di" bpmnElement="Task_UpdateStatus">
+        <dc:Bounds x="520" y="1750" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <!-- Архивирование -->
+      <bpmndi:BPMNShape id="Task_ArchiveDocument_di" bpmnElement="Task_ArchiveDocument">
+        <dc:Bounds x="660" y="1750" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      
+      <bpmndi:BPMNShape id="EndEvent_Database_di" bpmnElement="EndEvent_Database">
+        <dc:Bounds x="800" y="1760" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Потоки сообщений между участниками -->
+      <bpmndi:BPMNEdge id="MessageFlow_1_di" bpmnElement="MessageFlow_1">
+        <di:waypoint x="330" y="170" />
+        <di:waypoint x="330" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_2_di" bpmnElement="MessageFlow_2">
+        <di:waypoint x="470" y="170" />
+        <di:waypoint x="218" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_3_di" bpmnElement="MessageFlow_3">
+        <di:waypoint x="840" y="170" />
+        <di:waypoint x="330" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_4_di" bpmnElement="MessageFlow_4">
+        <di:waypoint x="330" y="390" />
+        <di:waypoint x="700" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_5_di" bpmnElement="MessageFlow_5">
+        <di:waypoint x="700" y="610" />
+        <di:waypoint x="330" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_6_di" bpmnElement="MessageFlow_6">
+        <di:waypoint x="840" y="610" />
+        <di:waypoint x="470" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_7_di" bpmnElement="MessageFlow_7">
+        <di:waypoint x="470" y="830" />
+        <di:waypoint x="330" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_8_di" bpmnElement="MessageFlow_8">
+        <di:waypoint x="330" y="1050" />
+        <di:waypoint x="330" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_9_di" bpmnElement="MessageFlow_9">
+        <di:waypoint x="330" y="1270" />
+        <di:waypoint x="470" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_10_di" bpmnElement="MessageFlow_10">
+        <di:waypoint x="470" y="1050" />
+        <di:waypoint x="610" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_11_di" bpmnElement="MessageFlow_11">
+        <di:waypoint x="610" y="830" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Дополнительные потоки документов в БД -->
+      <bpmndi:BPMNEdge id="MessageFlow_DB_1_di" bpmnElement="MessageFlow_DB_1">
+        <di:waypoint x="330" y="170" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_2_di" bpmnElement="MessageFlow_DB_2">
+        <di:waypoint x="470" y="170" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_3_di" bpmnElement="MessageFlow_DB_3">
+        <di:waypoint x="330" y="390" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_4_di" bpmnElement="MessageFlow_DB_4">
+        <di:waypoint x="330" y="830" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_5_di" bpmnElement="MessageFlow_DB_5">
+        <di:waypoint x="470" y="830" />
+        <di:waypoint x="570" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_6_di" bpmnElement="MessageFlow_DB_6">
+        <di:waypoint x="330" y="1050" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_7_di" bpmnElement="MessageFlow_DB_7">
+        <di:waypoint x="330" y="1270" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_8_di" bpmnElement="MessageFlow_DB_8">
+        <di:waypoint x="470" y="1050" />
+        <di:waypoint x="218" y="1708" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_DB_9_di" bpmnElement="MessageFlow_DB_9">
+        <di:waypoint x="610" y="830" />
+        <di:waypoint x="570" y="1790" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Последовательные потоки -->
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="236" y="168" />
+        <di:waypoint x="280" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="380" y="170" />
+        <di:waypoint x="420" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="520" y="170" />
+        <di:waypoint x="560" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="610" y="170" />
+        <di:waypoint x="790" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
+        <di:waypoint x="610" y="170" />
+        <di:waypoint x="650" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
+        <di:waypoint x="750" y="170" />
+        <di:waypoint x="790" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="890" y="170" />
+        <di:waypoint x="930" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
+        <di:waypoint x="1030" y="170" />
+        <di:waypoint x="1070" y="168" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Legal_1_di" bpmnElement="Flow_Legal_1">
+        <di:waypoint x="236" y="388" />
+        <di:waypoint x="280" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_2_di" bpmnElement="Flow_Legal_2">
+        <di:waypoint x="380" y="390" />
+        <di:waypoint x="420" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_3_di" bpmnElement="Flow_Legal_3">
+        <di:waypoint x="470" y="390" />
+        <di:waypoint x="510" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_4_di" bpmnElement="Flow_Legal_4">
+        <di:waypoint x="470" y="390" />
+        <di:waypoint x="650" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_5_di" bpmnElement="Flow_Legal_5">
+        <di:waypoint x="610" y="390" />
+        <di:waypoint x="790" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_6_di" bpmnElement="Flow_Legal_6">
+        <di:waypoint x="750" y="390" />
+        <di:waypoint x="790" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_7_di" bpmnElement="Flow_Legal_7">
+        <di:waypoint x="815" y="390" />
+        <di:waypoint x="880" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_8_di" bpmnElement="Flow_Legal_8">
+        <di:waypoint x="980" y="390" />
+        <di:waypoint x="1020" y="390" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Legal_9_di" bpmnElement="Flow_Legal_9">
+        <di:waypoint x="1120" y="390" />
+        <di:waypoint x="1160" y="388" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Client_1_di" bpmnElement="Flow_Client_1">
+        <di:waypoint x="236" y="608" />
+        <di:waypoint x="280" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Client_2_di" bpmnElement="Flow_Client_2">
+        <di:waypoint x="380" y="610" />
+        <di:waypoint x="420" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Client_3_di" bpmnElement="Flow_Client_3">
+        <di:waypoint x="470" y="610" />
+        <di:waypoint x="650" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Client_4_di" bpmnElement="Flow_Client_4">
+        <di:waypoint x="470" y="610" />
+        <di:waypoint x="510" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Client_5_di" bpmnElement="Flow_Client_5">
+        <di:waypoint x="750" y="610" />
+        <di:waypoint x="790" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Client_6_di" bpmnElement="Flow_Client_6">
+        <di:waypoint x="890" y="610" />
+        <di:waypoint x="930" y="608" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Accounting_1_di" bpmnElement="Flow_Accounting_1">
+        <di:waypoint x="236" y="828" />
+        <di:waypoint x="280" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_2_di" bpmnElement="Flow_Accounting_2">
+        <di:waypoint x="380" y="830" />
+        <di:waypoint x="420" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_3_di" bpmnElement="Flow_Accounting_3">
+        <di:waypoint x="520" y="830" />
+        <di:waypoint x="560" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_4_di" bpmnElement="Flow_Accounting_4">
+        <di:waypoint x="660" y="830" />
+        <di:waypoint x="700" y="830" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Accounting_5_di" bpmnElement="Flow_Accounting_5">
+        <di:waypoint x="800" y="830" />
+        <di:waypoint x="840" y="828" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Education_1_di" bpmnElement="Flow_Education_1">
+        <di:waypoint x="236" y="1048" />
+        <di:waypoint x="280" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Education_2_di" bpmnElement="Flow_Education_2">
+        <di:waypoint x="380" y="1050" />
+        <di:waypoint x="420" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Education_3_di" bpmnElement="Flow_Education_3">
+        <di:waypoint x="520" y="1050" />
+        <di:waypoint x="560" y="1050" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Education_4_di" bpmnElement="Flow_Education_4">
+        <di:waypoint x="660" y="1050" />
+        <di:waypoint x="700" y="1048" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_HR_1_di" bpmnElement="Flow_HR_1">
+        <di:waypoint x="236" y="1268" />
+        <di:waypoint x="280" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HR_2_di" bpmnElement="Flow_HR_2">
+        <di:waypoint x="380" y="1270" />
+        <di:waypoint x="420" y="1270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_HR_3_di" bpmnElement="Flow_HR_3">
+        <di:waypoint x="520" y="1270" />
+        <di:waypoint x="560" y="1268" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Management_1_di" bpmnElement="Flow_Management_1">
+        <di:waypoint x="236" y="1488" />
+        <di:waypoint x="280" y="1490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Management_2_di" bpmnElement="Flow_Management_2">
+        <di:waypoint x="380" y="1490" />
+        <di:waypoint x="420" y="1490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Management_3_di" bpmnElement="Flow_Management_3">
+        <di:waypoint x="520" y="1490" />
+        <di:waypoint x="560" y="1488" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Database_1_di" bpmnElement="Flow_Database_1">
+        <di:waypoint x="236" y="1708" />
+        <di:waypoint x="280" y="1710" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Contract_di" bpmnElement="Flow_Database_Contract">
+        <di:waypoint x="330" y="1710" />
+        <di:waypoint x="380" y="1690" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Financial_di" bpmnElement="Flow_Database_Financial">
+        <di:waypoint x="330" y="1710" />
+        <di:waypoint x="380" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Education_di" bpmnElement="Flow_Database_Education">
+        <di:waypoint x="330" y="1710" />
+        <di:waypoint x="380" y="1890" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_HR_di" bpmnElement="Flow_Database_HR">
+        <di:waypoint x="330" y="1710" />
+        <di:waypoint x="380" y="1990" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Contract_Update_di" bpmnElement="Flow_Database_Contract_Update">
+        <di:waypoint x="480" y="1690" />
+        <di:waypoint x="520" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Financial_Update_di" bpmnElement="Flow_Database_Financial_Update">
+        <di:waypoint x="480" y="1790" />
+        <di:waypoint x="520" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_Education_Update_di" bpmnElement="Flow_Database_Education_Update">
+        <di:waypoint x="480" y="1890" />
+        <di:waypoint x="520" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_HR_Update_di" bpmnElement="Flow_Database_HR_Update">
+        <di:waypoint x="480" y="1990" />
+        <di:waypoint x="520" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_3_di" bpmnElement="Flow_Database_3">
+        <di:waypoint x="620" y="1790" />
+        <di:waypoint x="660" y="1790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Database_4_di" bpmnElement="Flow_Database_4">
+        <di:waypoint x="760" y="1790" />
+        <di:waypoint x="800" y="1778" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
+

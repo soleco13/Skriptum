@@ -131,7 +131,7 @@
   }
   
   /* Кнопки и интерактивные элементы */
-  .btn-primary {
+  .landing .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -149,7 +149,7 @@
     z-index: 1;
   }
   
-  .btn-primary::before {
+  .landing .btn-primary::before {
     content: '';
     position: absolute;
     top: 0;
@@ -162,12 +162,12 @@
     transition: opacity 0.3s ease;
   }
   
-  .btn-primary:hover {
+  .landing .btn-primary:hover {
     transform: translateY(-3px);
     box-shadow: 0 15px 30px rgba(0, 85, 179, 0.3);
   }
   
-  .btn-primary:hover::before {
+  .landing .btn-primary:hover::before {
     opacity: 1;
   }
   
@@ -183,7 +183,7 @@
     transition: all 0.5s ease;
   }
   
-  .btn-primary:hover .btn-shine {
+  .landing .btn-primary:hover .btn-shine {
     animation: shineEffect 1.5s infinite;
   }
   
@@ -212,7 +212,7 @@
     }
   }
   
-  .btn-secondary {
+  .landing .btn-secondary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -226,7 +226,7 @@
     transition: all 0.3s ease;
   }
   
-  .btn-secondary:hover {
+  .landing .btn-secondary:hover {
     background: rgba(0, 85, 179, 0.2);
     transform: translateY(-3px);
   }
@@ -1589,17 +1589,17 @@
     margin-bottom: 2rem;
   }
   
-  .cta-section .btn-primary {
+  .landing .cta-section .btn-primary {
     background: white;
     color: var(--primary-color) !important;
   }
   
-  .cta-section .btn-primary:hover {
+  .landing .cta-section .btn-primary:hover {
     background: var(--accent-color);
     color: white !important;
   }
   
-  .cta-section .btn-secondary {
+  .landing .cta-section .btn-secondary {
     border-color: white;
     background: transparent;
     color: white !important;

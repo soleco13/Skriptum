@@ -66,9 +66,13 @@ export const BpmnService = {
   },
   
   // Обновление существующей диаграммы
-  updateDiagram: async (id, xml) => {
+  updateDiagram: async (id, xml, name = null) => {
     try {
-      const response = await apiClient.put(`/bpmn-diagrams/${id}/`, { xml });
+      const data = { xml };
+      if (name) {
+        data.name = name;
+      }
+      const response = await apiClient.patch(`/bpmn-diagrams/${id}/`, data);
       return response.data;
     } catch (error) {
       return handleApiError(error, null, 'Ошибка при обновлении BPMN-диаграммы');
@@ -82,6 +86,54 @@ export const BpmnService = {
       return true;
     } catch (error) {
       return handleApiError(error, false, 'Ошибка при удалении BPMN-диаграммы');
+    }
+  },
+
+  // Методы для управления доступом к BPMN диаграммам
+  
+  // Получение пользователей с доступом к диаграмме
+  getDiagramAccess: async (diagramId) => {
+    try {
+      const response = await apiClient.get(`/bpmn-access/diagram/${diagramId}/`);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, { owner: null, shared_users: [] }, 'Ошибка при получении списка доступа к диаграмме');
+    }
+  },
+
+  // Предоставление доступа пользователю
+  grantAccess: async (diagramId, userId, accessLevel = 'view') => {
+    try {
+      const response = await apiClient.post('/bpmn-access/', {
+        diagram: diagramId,
+        user: userId,
+        access_level: accessLevel
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, null, 'Ошибка при предоставлении доступа к диаграмме');
+    }
+  },
+
+  // Обновление уровня доступа
+  updateAccess: async (accessId, accessLevel) => {
+    try {
+      const response = await apiClient.patch(`/bpmn-access/${accessId}/`, {
+        access_level: accessLevel
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, null, 'Ошибка при обновлении уровня доступа к диаграмме');
+    }
+  },
+
+  // Отзыв доступа
+  revokeAccess: async (accessId) => {
+    try {
+      await apiClient.delete(`/bpmn-access/${accessId}/`);
+      return { success: true };
+    } catch (error) {
+      return handleApiError(error, null, 'Ошибка при отзыве доступа к диаграмме');
     }
   }
 };

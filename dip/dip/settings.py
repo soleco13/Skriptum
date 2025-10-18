@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-r$9&55i$au-e-$u)rlbgx0-9_ub6dqd1h#*%!7vxc%n0vwojvu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
 
 # Application definition
@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # Django Channels для WebSocket
     'myapp',
     'rest_framework',  # Подключаем DRF
     'corsheaders',
@@ -91,7 +92,7 @@ DATABASES = {
         'USER': 'postgres',
         'PASSWORD': '13042004',
         'HOST': 'localhost',
-        'PORT': '5432'
+        'PORT': '5432',
     }
 }
 
@@ -182,9 +183,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:8080',  # Замените на порт, на котором работает ваш Vue
+    'http://127.0.0.1:8080',
 ]
 
-# Настройки CORS для CKEditor
+# Настройки CORS для разработки
+CORS_ALLOW_ALL_ORIGINS = True  # Только для разработки!
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = ['*']
 CORS_ALLOW_METHODS = ['*']
@@ -220,3 +223,30 @@ SIMPLE_JWT = {
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 мегабайт
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 мегабайт
+
+# ======================================
+# DJANGO CHANNELS НАСТРОЙКИ
+# ======================================
+
+# Настройка ASGI для Channels
+ASGI_APPLICATION = 'dip.asgi.application'
+
+# Настройка каналов с Redis
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+            "capacity": 1000,  # Увеличиваем capacity
+            "expiry": 60,  # Время жизни сообщений
+        },
+    },
+}
+
+# Настройки для совместного редактирования
+COLLABORATIVE_EDITING = {
+    'CURSOR_UPDATE_INTERVAL': 100,  # мс
+    'OPERATION_TIMEOUT': 5000,  # мс
+    'MAX_OPERATION_SIZE': 10000,  # байт
+    'REDIS_PREFIX': 'bpmn_collab',
+}
