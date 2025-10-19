@@ -1,5 +1,5 @@
 """
-WebSocket Consumers для совместного редактирования BPMN диаграмм
+WebSocket Consumers для совместного редактирования BPMN диаграмм и уведомлений
 """
 
 import json
@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-from .models import BpmnDiagram, BpmnAccess
+from .models import BpmnDiagram, BpmnAccess, Notification
 
 
 class BpmnCollaborationConsumer(AsyncWebsocketConsumer):
@@ -542,3 +542,179 @@ class BpmnCollaborationConsumer(AsyncWebsocketConsumer):
                     print(f"Автосохранение диаграммы {self.diagram_id} при отключении пользователя {self.user.username}")
         except Exception as e:
             print(f"Error in auto_save_diagram: {e}")
+
+
+class NotificationConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket Consumer для real-time уведомлений
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = None
+        self.group_name = None
+        
+    @database_sync_to_async
+    def authenticate_user(self, token):
+        """Аутентификация пользователя по JWT токену"""
+        try:
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            user = User.objects.get(id=user_id)
+            return user
+        except (InvalidToken, TokenError, User.DoesNotExist):
+            return None
+    
+    async def connect(self):
+        """Подключение к WebSocket для уведомлений"""
+        print(f"🔔 WebSocket подключение для уведомлений: {self.scope}")
+        
+        # Получаем токен из query параметров
+        query_string = self.scope['query_string'].decode()
+        token = None
+        if query_string:
+            params = dict(param.split('=') for param in query_string.split('&') if '=' in param)
+            token = params.get('token')
+        
+        if not token:
+            await self.close()
+            return
+            
+        # Аутентифицируем пользователя по токену
+        self.user = await self.authenticate_user(token)
+        
+        if not self.user:
+            print(f"❌ Аутентификация не удалась для токена: {token[:20]}...")
+            await self.close()
+            return
+        
+        print(f"✅ Пользователь аутентифицирован для уведомлений: {self.user.username} (ID: {self.user.id})")
+        
+        # Создаем группу для пользователя
+        self.group_name = f'notifications_{self.user.id}'
+        
+        # Присоединяемся к группе
+        await self.channel_layer.group_add(
+            self.group_name,
+            self.channel_name
+        )
+        
+        await self.accept()
+        
+        # Отправляем количество непрочитанных уведомлений
+        unread_count = await self.get_unread_count()
+        await self.send(text_data=json.dumps({
+            'type': 'unread_count',
+            'count': unread_count
+        }))
+    
+    async def disconnect(self, close_code):
+        """Отключение от WebSocket"""
+        print(f"WebSocket disconnect для уведомлений: {close_code}")
+        if self.group_name:
+            await self.channel_layer.group_discard(
+                self.group_name,
+                self.channel_name
+            )
+    
+    async def receive(self, text_data):
+        """Получение сообщения от клиента"""
+        try:
+            data = json.loads(text_data)
+            message_type = data.get('type')
+            
+            if message_type == 'mark_as_read':
+                notification_id = data.get('notification_id')
+                if notification_id:
+                    await self.mark_notification_as_read(notification_id)
+            elif message_type == 'mark_all_as_read':
+                await self.mark_all_as_read()
+            elif message_type == 'get_notifications':
+                limit = data.get('limit', 20)
+                offset = data.get('offset', 0)
+                notifications = await self.get_notifications(limit, offset)
+                await self.send(text_data=json.dumps({
+                    'type': 'notifications_list',
+                    'notifications': notifications
+                }))
+                
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Invalid JSON'
+            }))
+        except Exception as e:
+            print(f"Error in notification receive: {e}")
+            await self.send(text_data=json.dumps({
+                'type': 'error',
+                'message': 'Internal server error'
+            }))
+    
+    async def notification_message(self, event):
+        """Получение уведомления от группы"""
+        notification = event['notification']
+        await self.send(text_data=json.dumps({
+            'type': 'new_notification',
+            'notification': notification
+        }))
+        
+        # Обновляем счетчик непрочитанных
+        unread_count = await self.get_unread_count()
+        await self.send(text_data=json.dumps({
+            'type': 'unread_count',
+            'count': unread_count
+        }))
+    
+    @database_sync_to_async
+    def get_unread_count(self):
+        """Получение количества непрочитанных уведомлений"""
+        try:
+            return Notification.objects.filter(user=self.user, is_read=False).count()
+        except Exception as e:
+            print(f"Error getting unread count: {e}")
+            return 0
+    
+    @database_sync_to_async
+    def get_notifications(self, limit=20, offset=0):
+        """Получение списка уведомлений"""
+        try:
+            notifications = Notification.objects.filter(user=self.user).order_by('-created_at')[offset:offset+limit]
+            return [
+                {
+                    'id': notification.id,
+                    'message': notification.message,
+                    'type': notification.type,
+                    'is_read': notification.is_read,
+                    'created_at': notification.created_at.isoformat(),
+                    'link': notification.link,
+                    'icon': notification.get_icon(),
+                    'color': notification.get_color(),
+                }
+                for notification in notifications
+            ]
+        except Exception as e:
+            print(f"Error getting notifications: {e}")
+            return []
+    
+    @database_sync_to_async
+    def mark_notification_as_read(self, notification_id):
+        """Помечает уведомление как прочитанное"""
+        try:
+            notification = Notification.objects.get(id=notification_id, user=self.user)
+            notification.mark_as_read()
+            return True
+        except Notification.DoesNotExist:
+            return False
+        except Exception as e:
+            print(f"Error marking notification as read: {e}")
+            return False
+    
+    @database_sync_to_async
+    def mark_all_as_read(self):
+        """Помечает все уведомления как прочитанные"""
+        try:
+            Notification.objects.filter(user=self.user, is_read=False).update(is_read=True)
+            return True
+        except Exception as e:
+            print(f"Error marking all notifications as read: {e}")
+            return False

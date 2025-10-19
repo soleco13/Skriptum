@@ -364,9 +364,6 @@ header {
   background-color: var(--bg-color);
 }
 
-.page-header {
-  margin-bottom: 2rem;
-}
 
 .breadcrumbs {
   display: flex;

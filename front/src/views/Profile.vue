@@ -1,7 +1,7 @@
 <template>
   <div class="profile-page">
     <!-- Заголовок страницы -->
-    <div class="page-header">
+    <div class="profile-header">
       <div class="header-content">
         <h1>
           <i class="fas fa-user-circle"></i>

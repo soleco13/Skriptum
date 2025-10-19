@@ -12,10 +12,7 @@
             <i class="fas fa-search"></i>
             <input type="text" placeholder="Глобальный поиск...">
           </div>
-          <div class="notifications">
-            <i class="fas fa-bell"></i>
-            <span class="notification-badge">3</span>
-          </div>
+          <NotificationBell />
           <div class="user-profile" @click="toggleProfileMenu">
             <img src="./assets/avatar.png" alt="User" class="avatar">
             <span>{{ userName }}</span>
@@ -58,6 +55,11 @@
               <span>Бизнес-процессы</span>
             </router-link>
             
+            <router-link to="/notifications" class="nav-item" active-class="active">
+              <i class="fas fa-bell"></i>
+              <span>Уведомления</span>
+            </router-link>
+            
             <router-link 
               to="/roles" 
               class="nav-item" 
@@ -84,12 +86,6 @@
         </aside>
 
         <main class="main-content">
-          <div class="page-header">
-            <h1><router-view name="title"></router-view></h1>
-            <div class="breadcrumbs">
-              <router-view name="breadcrumbs"></router-view>
-            </div>
-          </div>
           <router-view></router-view>
         </main>
       </div>
@@ -104,8 +100,12 @@
 
 <script>
 import axios from 'axios';
+import NotificationBell from './components/NotificationBell.vue';
 
 export default {
+  components: {
+    NotificationBell
+  },
   data() {
     return {
       message: null,  // Изначально данных нет

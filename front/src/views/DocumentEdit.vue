@@ -15,6 +15,12 @@
         <button class="btn-secondary" @click="openHistoryModal">
           <i class="fas fa-history"></i> История
         </button>
+        <button class="btn-secondary" @click="openSignatureModal">
+          <i class="fas fa-signature"></i> Подпись
+        </button>
+        <button class="btn-secondary" @click="openStampModal">
+          <i class="fas fa-stamp"></i> Печать
+        </button>
         <button class="btn-secondary" @click="goBack">
           <i class="fas fa-arrow-left"></i> Назад
         </button>
@@ -70,6 +76,57 @@
             <h3>Предпросмотр</h3>
           </div>
           <div class="preview-content" v-html="document.content"></div>
+          
+          <!-- Отображение подписи и печати -->
+          <div v-if="document.is_signed || document.is_stamped" class="document-signatures">
+            <!-- Подпись -->
+            <div v-if="document.is_signed" class="signature-display">
+              <div class="signature-label">
+                <i class="fas fa-signature"></i>
+                Подпись:
+              </div>
+              <div class="signature-info">
+                <span class="signature-author">{{ document.signature_info?.signed_by || 'Неизвестно' }}</span>
+                <span class="signature-date">{{ formatDate(document.signature_info?.signature_date) }}</span>
+              </div>
+              <img 
+                :src="document.signature" 
+                alt="Подпись" 
+                class="signature-image" 
+                @error="onSignatureImageError" 
+                @load="onSignatureImageLoad"
+                v-if="document.signature && document.signature.startsWith('data:image')"
+              />
+              <div v-else-if="document.is_signed && !document.signature" class="signature-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                Ошибка загрузки подписи
+              </div>
+            </div>
+            
+            <!-- Печать -->
+            <div v-if="document.is_stamped" class="stamp-display">
+              <div class="stamp-label">
+                <i class="fas fa-stamp"></i>
+                Печать:
+              </div>
+              <div class="stamp-info">
+                <span class="stamp-author">{{ document.stamp_info?.stamped_by || 'Неизвестно' }}</span>
+                <span class="stamp-date">{{ formatDate(document.stamp_info?.stamp_date) }}</span>
+              </div>
+              <img 
+                :src="document.digital_stamp" 
+                alt="Печать" 
+                class="stamp-image" 
+                @error="onStampImageError" 
+                @load="onStampImageLoad"
+                v-if="document.digital_stamp && document.digital_stamp.startsWith('data:image')"
+              />
+              <div v-else-if="document.is_stamped && !document.digital_stamp" class="stamp-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                Ошибка загрузки печати
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -273,6 +330,58 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно подписи -->
+    <div v-if="showSignatureModal" class="modal" @click="handleSignatureModalBackdrop">
+      <div class="modal-content signature-modal" @click.stop>
+        <button class="close-btn" @click="closeSignatureModal">
+          <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="modal-header">
+          <h2>
+            <i class="fas fa-signature"></i>
+            Подпись документа
+          </h2>
+          <p class="modal-subtitle">Подпишите документ для его утверждения</p>
+        </div>
+        
+        <div class="signature-modal-content">
+          <SignaturePad 
+            :document-id="document.id"
+            :initial-signature="document.signature"
+            @signature-saved="onSignatureSaved"
+            @error="onSignatureError"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно печати -->
+    <div v-if="showStampModal" class="modal" @click="handleStampModalBackdrop">
+      <div class="modal-content stamp-modal" @click.stop>
+        <button class="close-btn" @click="closeStampModal">
+          <i class="fas fa-times"></i>
+        </button>
+        
+        <div class="modal-header">
+          <h2>
+            <i class="fas fa-stamp"></i>
+            Электронная печать
+          </h2>
+          <p class="modal-subtitle">Проставьте электронную печать на документе</p>
+        </div>
+        
+        <div class="stamp-modal-content">
+          <DigitalStamp 
+            :document-id="document.id"
+            :initial-stamp="document.digital_stamp"
+            @stamp-saved="onStampSaved"
+            @error="onStampError"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -280,11 +389,15 @@
 import { DocumentService, UserService } from '../api/services';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import '@ckeditor/ckeditor5-build-classic/build/translations/ru';
+import SignaturePad from '../components/SignaturePad.vue';
+import DigitalStamp from '../components/DigitalStamp.vue';
 
 export default {
   name: 'DocumentEdit',
   components: {
     // CKEditor регистрируется глобально в main.js через app.use(CKEditor)
+    SignaturePad,
+    DigitalStamp
   },
   data() {
     return {
@@ -296,7 +409,14 @@ export default {
         created: '',
         content: '', // Инициализируем пустой строкой по умолчанию
         file: null,
-        file_type: null
+        file_type: null,
+        signature: null,
+        digital_stamp: null,
+        signature_info: null,
+        stamp_info: null,
+        is_signed: false,
+        is_stamped: false,
+        is_approved: false
       },
       showPreview: true, // Показывать предпросмотр по умолчанию
       editor: ClassicEditor,
@@ -324,7 +444,10 @@ export default {
       isSearchingUsers: false,
       usersWithAccess: [],
       documentOwner: null,
-      searchTimeout: null
+      searchTimeout: null,
+      // Данные для модальных окон подписи и печати
+      showSignatureModal: false,
+      showStampModal: false
     };
   },
   created() {
@@ -336,11 +459,62 @@ export default {
     }
   },
   methods: {
+    // Форматирование даты для отображения
+    formatDate(dateString) {
+      if (!dateString) return 'Неизвестно';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    },
+    
+    // Обработчики для изображений подписи и печати
+    onSignatureImageError(event) {
+      console.error('Ошибка загрузки изображения подписи:', event);
+      console.log('Данные подписи:', this.document.signature);
+      console.log('Тип данных подписи:', typeof this.document.signature);
+      console.log('Длина данных подписи:', this.document.signature ? this.document.signature.length : 0);
+      console.log('Начало данных подписи:', this.document.signature ? this.document.signature.substring(0, 100) : 'null');
+      console.log('Информация о подписи:', this.document.signature_info);
+    },
+    
+    onSignatureImageLoad() {
+      console.log('Изображение подписи успешно загружено');
+    },
+    
+    onStampImageError() {
+      console.error('Ошибка загрузки изображения печати');
+      console.log('Данные печати:', this.document.digital_stamp);
+      console.log('Информация о печати:', this.document.stamp_info);
+    },
+    
+    onStampImageLoad() {
+      console.log('Изображение печати успешно загружено');
+    },
+    
     async fetchDocument(id) {
       try {
         // Получаем содержимое документа для редактирования
         const documentData = await DocumentService.getContent(id);
         console.log('Полученные данные документа:', documentData); // Отладочный вывод
+        
+        // Получаем информацию о подписи и печати
+        const [signatureInfo, stampInfo, approvalStatus] = await Promise.all([
+          DocumentService.getSignatureInfo(id),
+          DocumentService.getStampInfo(id),
+          DocumentService.getApprovalStatus(id)
+        ]);
+        
+        console.log('Информация о подписи:', signatureInfo);
+        console.log('Информация о печати:', stampInfo);
+        console.log('Статус утверждения:', approvalStatus);
+        console.log('Данные подписи из signatureInfo:', signatureInfo.signature);
+        console.log('Данные печати из stampInfo:', stampInfo.stamp);
+        console.log('Полный объект signatureInfo:', JSON.stringify(signatureInfo, null, 2));
         
         // Проверяем, есть ли содержимое в полученных данных
         if (documentData && typeof documentData === 'object') {
@@ -348,12 +522,25 @@ export default {
           this.document = {
             ...documentData,
             id: id,
-            content: documentData.content || ''
+            content: documentData.content || '',
+            // Добавляем информацию о подписи и печати
+            signature: signatureInfo.has_signature ? signatureInfo.signature : null,
+            digital_stamp: stampInfo.has_stamp ? stampInfo.stamp : null,
+            signature_info: signatureInfo,
+            stamp_info: stampInfo,
+            is_signed: approvalStatus.is_signed,
+            is_stamped: approvalStatus.is_stamped,
+            is_approved: approvalStatus.is_approved,
+            status: approvalStatus.status || documentData.status
           };
           
           console.log('Установленное содержимое документа:', this.document.content); // Отладочный вывод
           console.log('Данные о документе:', this.document); // Отладка
           console.log('document.is_owner:', this.document.is_owner); // Отладка
+          console.log('Установленная подпись:', this.document.signature);
+          console.log('Установленная печать:', this.document.digital_stamp);
+          console.log('is_signed:', this.document.is_signed);
+          console.log('is_stamped:', this.document.is_stamped);
           
           // Если поле is_owner отсутствует, определяем владельца по наличию прав на редактирование
           if (this.document.is_owner === undefined || this.document.is_owner === null) {
@@ -736,6 +923,165 @@ export default {
       if (this.showPreview && this.editorInstance) {
         this.updatePreview();
       }
+    },
+    
+    // Методы для работы с подписями и печатями
+    openSignatureModal() {
+      this.showSignatureModal = true;
+    },
+    
+    closeSignatureModal() {
+      this.showSignatureModal = false;
+    },
+    
+    handleSignatureModalBackdrop(event) {
+      if (event.target === event.currentTarget) {
+        this.closeSignatureModal();
+      }
+    },
+    
+    openStampModal() {
+      this.showStampModal = true;
+    },
+    
+    closeStampModal() {
+      this.showStampModal = false;
+    },
+    
+    handleStampModalBackdrop(event) {
+      if (event.target === event.currentTarget) {
+        this.closeStampModal();
+      }
+    },
+    
+    async onSignatureSaved(signatureData) {
+      try {
+        console.log('Сохранение подписи:', signatureData);
+        console.log('Данные подписи для сохранения:', signatureData.signature);
+        console.log('Тип данных:', typeof signatureData.signature);
+        console.log('Длина данных:', signatureData.signature ? signatureData.signature.length : 0);
+        
+        // Отправляем подпись на сервер
+        const response = await DocumentService.addSignature(this.document.id, signatureData.signature);
+        
+        if (response.success) {
+          console.log('Подпись успешно сохранена на сервере');
+          console.log('Ответ сервера:', response);
+          
+          // Обновляем данные документа
+          this.document.signature = signatureData.signature;
+          this.document.signature_info = response.signature_info;
+          this.document.is_signed = true;
+          this.document.is_approved = true;
+          this.document.status = response.status;
+          
+          console.log('Данные документа обновлены:', this.document);
+          
+          // Закрываем модальное окно
+          this.closeSignatureModal();
+          
+          // Показываем уведомление об успехе
+          this.showSuccessNotification('Документ успешно подписан и утвержден');
+        }
+      } catch (error) {
+        console.error('Ошибка при сохранении подписи:', error);
+        this.showErrorNotification('Ошибка при сохранении подписи');
+      }
+    },
+    
+    async onStampSaved(stampData) {
+      try {
+        // Отправляем печать на сервер
+        const response = await DocumentService.addStamp(this.document.id, stampData.stamp, stampData.stampData);
+        
+        if (response.success) {
+          // Обновляем данные документа
+          this.document.digital_stamp = stampData.stamp;
+          this.document.stamp_info = response.stamp_info;
+          this.document.is_stamped = true;
+          this.document.is_approved = true;
+          this.document.status = response.status;
+          
+          // Закрываем модальное окно
+          this.closeStampModal();
+          
+          // Показываем уведомление об успехе
+          this.showSuccessNotification('Печать успешно проставлена и документ утвержден');
+        }
+      } catch (error) {
+        console.error('Ошибка при сохранении печати:', error);
+        this.showErrorNotification('Ошибка при сохранении печати');
+      }
+    },
+    
+    onSignatureError(error) {
+      console.error('Ошибка в компоненте подписи:', error);
+      this.showErrorNotification(error);
+    },
+    
+    onStampError(error) {
+      console.error('Ошибка в компоненте печати:', error);
+      this.showErrorNotification(error);
+    },
+    
+    showSuccessNotification(message) {
+      // Простое уведомление об успехе
+      const notification = document.createElement('div');
+      notification.className = 'success-notification';
+      notification.textContent = message;
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        z-index: 1000;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease;
+      `;
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    },
+    
+    showErrorNotification(message) {
+      // Простое уведомление об ошибке
+      const notification = document.createElement('div');
+      notification.className = 'error-notification';
+      notification.textContent = message;
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ef4444;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        z-index: 1000;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease;
+      `;
+      
+      document.body.appendChild(notification);
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
     }
   },
   beforeUnmount() {
@@ -1921,12 +2267,202 @@ export default {
   
   .access-user-item .access-level {
     align-self: flex-start;
+  }}
+  
+/* ======================================
+ * СТИЛИ ДЛЯ МОДАЛЬНЫХ ОКОН ПОДПИСИ И ПЕЧАТИ
+ * ====================================== */
+.signature-modal,
+.stamp-modal {
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.signature-modal-content,
+.stamp-modal-content {
+  padding: 1.5rem 2rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Анимации для уведомлений */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Адаптивность для модальных окон подписи и печати */
+@media (max-width: 768px) {
+  .signature-modal,
+  .stamp-modal {
+    max-width: 95vw;
+    margin: 1rem;
   }
   
-  .btn-remove-user {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
+  .signature-modal-content,
+  .stamp-modal-content {
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .signature-modal,
+  .stamp-modal {
+    width: 98%;
+    max-height: 95vh;
+  }
+  
+  .signature-modal-content,
+  .stamp-modal-content {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* ======================================
+ * СТИЛИ ДЛЯ ОТОБРАЖЕНИЯ ПОДПИСИ И ПЕЧАТИ В ДОКУМЕНТЕ
+ * ====================================== */
+.document-signatures {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.signature-display,
+.stamp-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.signature-label,
+.stamp-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.signature-label i,
+.stamp-label i {
+  color: #3b82f6;
+}
+
+.signature-info,
+.stamp-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.signature-author,
+.stamp-author {
+  font-weight: 500;
+  color: #374151;
+}
+
+.signature-date,
+.stamp-date {
+  color: #9ca3af;
+}
+
+.signature-image,
+.stamp-image {
+  max-width: 200px;
+  max-height: 100px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: white;
+  padding: 0.5rem;
+  object-fit: contain;
+}
+
+.signature-error,
+.stamp-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.signature-error i,
+.stamp-error i {
+  color: #dc2626;
+}
+
+/* Адаптивность для отображения подписи и печати */
+@media (max-width: 768px) {
+  .document-signatures {
+    margin-top: 1rem;
+    padding-top: 1rem;
+  }
+  
+  .signature-display,
+  .stamp-display {
+    padding: 0.75rem;
+  }
+  
+  .signature-image,
+  .stamp-image {
+    max-width: 150px;
+    max-height: 80px;
+  }
+}
+
+@media (max-width: 480px) {
+  .signature-info,
+  .stamp-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .signature-image,
+  .stamp-image {
+    max-width: 120px;
+    max-height: 60px;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div class="roles-management-page">
     <!-- Заголовок страницы -->
-    <div class="page-header">
+    <div class="roles-header">
       <div class="header-content">
         <h1>
           <i class="fas fa-users-cog"></i>
@@ -964,13 +964,12 @@ export default {
   min-height: 100vh;
 }
 
-.page-header {
+.roles-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0;
 }
 
 .header-content h1 {
@@ -2179,7 +2178,7 @@ export default {
     padding: 1rem;
   }
   
-  .page-header {
+  .roles-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;

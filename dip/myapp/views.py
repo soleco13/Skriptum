@@ -5,8 +5,10 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import Document, Process, Task, UserProfile, DocumentHistory, BpmnDiagram, DocumentAccess, BpmnAccess, Role
+from django.utils import timezone
+from .models import Document, Process, Task, UserProfile, DocumentHistory, BpmnDiagram, DocumentAccess, BpmnAccess, Role, Notification
 from .serializers import DocumentSerializer, ProcessSerializer, TaskSerializer, UserSerializer, UserProfileSerializer, UserCreateSerializer, DocumentHistorySerializer, BpmnDiagramSerializer, UserSearchSerializer, DocumentAccessSerializer, BpmnAccessSerializer, RoleSerializer, RoleListSerializer
+from .notification_serializers import NotificationSerializer, NotificationListSerializer
 
 class DocumentViewSet(viewsets.ModelViewSet):
     queryset = Document.objects.all()  # Добавляем базовый queryset
@@ -101,6 +103,180 @@ class DocumentViewSet(viewsets.ModelViewSet):
             })
         except DocumentHistory.DoesNotExist:
             return Response({'error': 'Версия не найдена'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @action(detail=True, methods=['post'])
+    def add_signature(self, request, pk=None):
+        """Добавление подписи к документу"""
+        document = self.get_object()
+        
+        # Проверяем права на подписание документа
+        if not self.can_sign_document(document, request.user):
+            return Response(
+                {'error': 'У вас нет прав для подписания этого документа'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        signature_data = request.data.get('signature')
+        if not signature_data:
+            return Response(
+                {'error': 'Данные подписи не предоставлены'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Сохраняем подпись
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"=== Сохранение подписи для документа {document.id} ===")
+            logger.error(f"Длина данных подписи: {len(signature_data) if signature_data else 0}")
+            logger.error(f"Начало данных подписи: {signature_data[:100] if signature_data else 'None'}")
+            
+            document.signature = signature_data
+            document.signature_date = timezone.now()
+            document.signed_by = request.user
+            
+            # Автоматически меняем статус на "Утверждено" при подписи
+            if document.status != 'approved':
+                document.status = 'approved'
+            
+            document.save()
+            logger.error(f"=== Подпись успешно сохранена для документа {document.id} ===")
+            
+            # Проверяем, что данные действительно сохранились
+            document.refresh_from_db()
+            logger.error(f"После сохранения - длина данных подписи: {len(document.signature) if document.signature else 0}")
+            logger.error(f"После сохранения - начало данных подписи: {document.signature[:100] if document.signature else 'None'}")
+            
+            return Response({
+                'success': True,
+                'message': 'Документ успешно подписан',
+                'signature_info': document.get_signature_info(),
+                'status': document.status
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка при сохранении подписи: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['post'])
+    def add_stamp(self, request, pk=None):
+        """Добавление электронной печати к документу"""
+        document = self.get_object()
+        
+        # Проверяем права на проставление печати
+        if not self.can_stamp_document(document, request.user):
+            return Response(
+                {'error': 'У вас нет прав для проставления печати на этом документе'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        stamp_data = request.data.get('stamp')
+        stamp_info = request.data.get('stamp_info', {})
+        
+        if not stamp_data:
+            return Response(
+                {'error': 'Данные печати не предоставлены'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Сохраняем печать
+            document.digital_stamp = stamp_data
+            document.stamp_data = stamp_info
+            document.stamp_date = timezone.now()
+            document.stamped_by = request.user
+            
+            # Автоматически меняем статус на "Утверждено" при проставлении печати
+            if document.status != 'approved':
+                document.status = 'approved'
+            
+            document.save()
+            
+            return Response({
+                'success': True,
+                'message': 'Печать успешно проставлена',
+                'stamp_info': document.get_stamp_info(),
+                'status': document.status
+            })
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка при сохранении печати: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['get'])
+    def signature_info(self, request, pk=None):
+        """Получение информации о подписи документа"""
+        document = self.get_object()
+        return Response(document.get_signature_info())
+    
+    @action(detail=True, methods=['get'])
+    def stamp_info(self, request, pk=None):
+        """Получение информации о печати документа"""
+        document = self.get_object()
+        return Response(document.get_stamp_info())
+    
+    @action(detail=True, methods=['get'])
+    def approval_status(self, request, pk=None):
+        """Получение статуса утверждения документа"""
+        document = self.get_object()
+        return Response({
+            'is_signed': document.is_signed(),
+            'is_stamped': document.is_stamped(),
+            'is_approved': document.is_approved(),
+            'status': document.status,
+            'signature_info': document.get_signature_info(),
+            'stamp_info': document.get_stamp_info()
+        })
+    
+    def can_sign_document(self, document, user):
+        """Проверяет, может ли пользователь подписать документ"""
+        # Владелец документа может подписать
+        if document.user == user:
+            return True
+        
+        # Пользователи с правами администратора на документ могут подписать
+        try:
+            access = DocumentAccess.objects.get(document=document, user=user)
+            return access.access_level in ['admin', 'write']
+        except DocumentAccess.DoesNotExist:
+            pass
+        
+        # Проверяем права через роль пользователя
+        try:
+            profile = user.profile
+            if profile and profile.role:
+                return profile.has_permission('edit_documents')
+        except UserProfile.DoesNotExist:
+            pass
+        
+        return False
+    
+    def can_stamp_document(self, document, user):
+        """Проверяет, может ли пользователь проставить печать на документе"""
+        # Владелец документа может проставить печать
+        if document.user == user:
+            return True
+        
+        # Пользователи с правами администратора на документ могут проставить печать
+        try:
+            access = DocumentAccess.objects.get(document=document, user=user)
+            return access.access_level in ['admin', 'write']
+        except DocumentAccess.DoesNotExist:
+            pass
+        
+        # Проверяем права через роль пользователя
+        try:
+            profile = user.profile
+            if profile and profile.role:
+                return profile.has_permission('edit_documents')
+        except UserProfile.DoesNotExist:
+            pass
+        
+        return False
 
 class BpmnDiagramViewSet(viewsets.ModelViewSet):
     queryset = BpmnDiagram.objects.all()

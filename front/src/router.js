@@ -58,6 +58,12 @@ const routes = [
       name: 'RolesManagement',
       component: () => import('./views/RolesManagement.vue'),
       meta: { requiresAuth: true, requiresPermission: 'manage_roles' }
+    },
+    {
+      path: '/notifications',
+      name: 'Notifications',
+      component: () => import('./views/Notifications.vue'),
+      meta: { requiresAuth: true }
     }
 ]
 

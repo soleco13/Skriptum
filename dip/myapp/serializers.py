@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Document, Process, Task, UserProfile, DocumentHistory, BpmnDiagram, DocumentAccess, BpmnAccess, Role
+from .models import Document, Process, Task, UserProfile, DocumentHistory, BpmnDiagram, DocumentAccess, BpmnAccess, Role, Notification
 
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.SerializerMethodField()
@@ -96,11 +96,16 @@ class DocumentSerializer(serializers.ModelSerializer):
     file = serializers.FileField(required=False, allow_null=True)
     is_owner = serializers.SerializerMethodField()
     owner_name = serializers.SerializerMethodField()
+    signature_info = serializers.SerializerMethodField()
+    stamp_info = serializers.SerializerMethodField()
+    is_signed = serializers.SerializerMethodField()
+    is_stamped = serializers.SerializerMethodField()
+    is_approved = serializers.SerializerMethodField()
     
     class Meta:
         model = Document
         fields = '__all__'
-        read_only_fields = ('user',)
+        read_only_fields = ('user', 'signature_date', 'signed_by', 'stamp_date', 'stamped_by')
     
     def get_is_owner(self, obj):
         request = self.context.get('request')
@@ -129,6 +134,21 @@ class DocumentSerializer(serializers.ModelSerializer):
                 validated_data['file_type'] = 'pdf'
         
         return super().create(validated_data)
+    
+    def get_signature_info(self, obj):
+        return obj.get_signature_info()
+    
+    def get_stamp_info(self, obj):
+        return obj.get_stamp_info()
+    
+    def get_is_signed(self, obj):
+        return obj.is_signed()
+    
+    def get_is_stamped(self, obj):
+        return obj.is_stamped()
+    
+    def get_is_approved(self, obj):
+        return obj.is_approved()
 
 class ProcessSerializer(serializers.ModelSerializer):
     is_owner = serializers.SerializerMethodField()

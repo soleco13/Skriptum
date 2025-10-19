@@ -284,6 +284,76 @@ export const DocumentService = {
     } catch (error) {
       return handleApiError(error, null, 'Ошибка при отзыве доступа');
     }
+  },
+  
+  // Добавление подписи к документу
+  addSignature: async (documentId, signatureData) => {
+    try {
+      const response = await apiClient.post(`/documents/${documentId}/add_signature/`, {
+        signature: signatureData
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, {
+        success: false,
+        message: 'Ошибка при добавлении подписи'
+      });
+    }
+  },
+  
+  // Добавление электронной печати к документу
+  addStamp: async (documentId, stampData, stampInfo) => {
+    try {
+      const response = await apiClient.post(`/documents/${documentId}/add_stamp/`, {
+        stamp: stampData,
+        stamp_info: stampInfo
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, {
+        success: false,
+        message: 'Ошибка при добавлении печати'
+      });
+    }
+  },
+  
+  // Получение информации о подписи документа
+  getSignatureInfo: async (documentId) => {
+    try {
+      const response = await apiClient.get(`/documents/${documentId}/signature_info/`);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, {
+        has_signature: false
+      });
+    }
+  },
+  
+  // Получение информации о печати документа
+  getStampInfo: async (documentId) => {
+    try {
+      const response = await apiClient.get(`/documents/${documentId}/stamp_info/`);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, {
+        has_stamp: false
+      });
+    }
+  },
+  
+  // Получение статуса утверждения документа
+  getApprovalStatus: async (documentId) => {
+    try {
+      const response = await apiClient.get(`/documents/${documentId}/approval_status/`);
+      return response.data;
+    } catch (error) {
+      return handleApiError(error, {
+        is_signed: false,
+        is_stamped: false,
+        is_approved: false,
+        status: 'draft'
+      });
+    }
   }
 };
 
